@@ -1,0 +1,11 @@
+country,month,sales,channel
+United States,2024-01,154000,Online
+United States,2024-02,161500,Retail
+Canada,2024-01,83000,Online
+Canada,2024-02,90500,Retail
+Germany,2024-01,99000,Online
+Germany,2024-02,102500,Retail
+Australia,2024-01,72000,Online
+Australia,2024-02,75500,Retail
+Japan,2024-01,112000,Online
+Japan,2024-02,118700,Retail
