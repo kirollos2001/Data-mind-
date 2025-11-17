@@ -52,8 +52,16 @@ def _render_message(message: dict) -> None:
             
             # Display suggestions
             if "suggestions" in message:
-                with st.expander("💡 Suggestions for next analysis", expanded=False):
-                    st.markdown(message["suggestions"])
+                # Strip '[' and ']' from the beginning and end of suggestions text
+                suggestions_text = message["suggestions"].strip()
+                if suggestions_text.startswith('['):
+                    suggestions_text = suggestions_text[1:]
+                if suggestions_text.endswith(']'):
+                    suggestions_text = suggestions_text[:-1]
+                suggestions_text = suggestions_text.strip()
+                
+                with st.expander("💡 Suggestions for next analysis", expanded=True):
+                    st.markdown(suggestions_text)
             
             # Display errors
             if "error" in message:

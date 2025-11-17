@@ -66,7 +66,7 @@ def _build_user_content(user_query: str, data_summary: str) -> str:
 
 
 def _extract_code_from_markdown(code_text: str) -> str:
-    """Extract actual Python code from markdown code blocks."""
+    """Extract actual Python code from markdown code blocks and remove import statements."""
     code_text = code_text.strip()
     
     # Check if wrapped in triple backticks
@@ -79,15 +79,22 @@ def _extract_code_from_markdown(code_text: str) -> str:
             lines = lines[:-1]
         code_text = '\n'.join(lines)
     
-    # Remove import statements since pd, np, px, go are pre-imported in execution environment
+    # Remove ALL import statements since pd, np, px, go are pre-imported in execution environment
     lines = code_text.split('\n')
     filtered_lines = []
     for line in lines:
         stripped = line.strip()
-        # Skip import lines for pre-loaded modules
-        if stripped.startswith('import tensor'):
+        # Skip all import statements (import X, from X import Y, etc.)
+        if stripped.startswith('import ') or stripped.startswith('from '):
             continue
+        # Skip empty lines that were after imports
         filtered_lines.append(line)
+    
+    # Remove leading/trailing empty lines
+    while filtered_lines and not filtered_lines[0].strip():
+        filtered_lines.pop(0)
+    while filtered_lines and not filtered_lines[-1].strip():
+        filtered_lines.pop()
     
     return '\n'.join(filtered_lines)
 
@@ -121,7 +128,7 @@ def ask_llm(
     user_query: str,
     data_summary: str,
     *,
-    model: str = "gemini-flash-latest",
+    model: str = "gemini-2.5-pro",
     api_key: Optional[str] = None,
     temperature: float = 0.2,
     reset_chat: bool = False,
