@@ -1,5 +1,6 @@
 # Core dependencies
 # Add your project dependencies here
+google-generativeai>=0.3.0
 
 # Development dependencies
 pytest>=7.4.0

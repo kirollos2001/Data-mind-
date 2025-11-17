@@ -9,8 +9,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from google import genai  # type: ignore
-from google.genai import types  # type: ignore
+
+try:
+    import google.generativeai as genai 
+except ImportError as e:
+    raise ImportError(
+        "google-generativeai package is not installed. "
+        "Please install it by running: pip install google-generativeai"
+    ) from e
 
 
 load_dotenv()
@@ -18,7 +24,8 @@ load_dotenv()
 # Global chat session storage
 _chat_session = None
 _current_data_summary = None
-_client = None
+_model = None
+_current_model_name = None
 
 
 class LLMResponseError(RuntimeError):
@@ -78,12 +85,7 @@ def _extract_code_from_markdown(code_text: str) -> str:
     for line in lines:
         stripped = line.strip()
         # Skip import lines for pre-loaded modules
-        if stripped.startswith('import pandas') or \
-           stripped.startswith('import numpy') or \
-           stripped.startswith('import plotly') or \
-           stripped.startswith('from pandas') or \
-           stripped.startswith('from numpy') or \
-           stripped.startswith('from plotly'):
+        if stripped.startswith('import tensor'):
             continue
         filtered_lines.append(line)
     
@@ -119,13 +121,13 @@ def ask_llm(
     user_query: str,
     data_summary: str,
     *,
-    model: str = "gemini-2.0-flash-exp",
+    model: str = "gemini-flash-latest",
     api_key: Optional[str] = None,
     temperature: float = 0.2,
     reset_chat: bool = False,
 ) -> LLMResponse:
     """Query the Gemini LLM using chat session for conversation context."""
-    global _chat_session, _current_data_summary, _client
+    global _chat_session, _current_data_summary, _model, _current_model_name
     
     if not user_query.strip():
         raise ValueError("User query must not be empty.")
@@ -138,27 +140,32 @@ def ask_llm(
         raise EnvironmentError(
             "GEMINI_API_KEY is not set. Please configure your Gemini API key."
         )
+    
+    # Strip whitespace from API key
+    api_key = api_key.strip()
+    
+    # Configure the API key
+    genai.configure(api_key=api_key)
 
-    # Create client if it doesn't exist
-    if _client is None:
-        _client = genai.Client(api_key=api_key)
+    # Create model if it doesn't exist or if model name changed
+    if _model is None or _current_model_name != model:
+        _model = genai.GenerativeModel(
+            model_name=model,
+            generation_config={
+                "temperature": temperature,
+                "response_mime_type": "application/json",
+            },
+            system_instruction=_load_system_prompt(),
+        )
+        _current_model_name = model
     
     # Reset chat if requested or if data summary changed (new dataset uploaded)
     if reset_chat or _chat_session is None or _current_data_summary != data_summary:
-        system_prompt = _load_system_prompt()
-        
-        # Start a new chat session with system instructions
-        _chat_session = _client.chats.create(
-            model=model,
-            config=types.GenerateContentConfig(
-                temperature=temperature,
-                response_mime_type="application/json",
-                system_instruction=system_prompt,
-            ),
-        )
-        
         # Store the current data summary for comparison
         _current_data_summary = data_summary
+        
+        # Start a new chat session
+        _chat_session = _model.start_chat(history=[])
         
         # Send initial context message with data summary
         initial_message = f"Dataset summary:\n{data_summary}\n\nI'm ready to analyze this data. What would you like to know?"
@@ -180,11 +187,11 @@ def ask_llm(
 
 def reset_chat_session() -> None:
     """Reset the chat session (useful when uploading a new dataset)."""
-    global _chat_session, _current_data_summary, _client
+    global _chat_session, _current_data_summary, _model, _current_model_name
     _chat_session = None
     _current_data_summary = None
-    # Don't close the client, just reset the session
-    # _client remains alive for future requests
+    # Keep the model, just reset the session
+    # _model remains alive for future requests
 
 
 def send_execution_results(execution_output: str) -> LLMResponse:
@@ -216,4 +223,3 @@ def send_execution_results(execution_output: str) -> LLMResponse:
         raise LLMResponseError("Failed to parse JSON from LLM response.") from exc
     
     return _ensure_response_shape(payload)
-

@@ -106,7 +106,7 @@ When the user asks to "explain", "describe", or "interpret" a previous analysis 
 
 --- CODING RULES (strict) ---
 - Use `df` as the dataset variable.
-- **include import statements** - for Example: `pandas as pd`, `numpy as np`, `plotly.express as px`, `plotly.graph_objects as go`,`import plotly.express as px`,
+- **ensure to include import statements** - for Example: `pandas as pd`, `numpy as np`, `plotly.express as px`, `plotly.graph_objects as go`,`import plotly.express as px`,
 `import plotly.graph_objects as go`,
 `from plotly.subplots import make_subplots`.
 - IMPORTANT:
@@ -381,6 +381,7 @@ Here’s the code to create the dashboard:
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from dash import Dash, dcc, html
 import dash_bootstrap_components as dbc
 
