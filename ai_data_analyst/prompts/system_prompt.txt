@@ -319,7 +319,7 @@ If the user requests a "dashboard" or uses related terms
 1. Detect dashboard intent:
    - When detected, respond with an introductory message explaining two available modes:
 
-     “You can choose :
+     “You can choose (The user must be provided with the details of both options to choose amid them.):
       (A) Guided mode — I’ll ask you a few questions about the number and types of visualizations you want.
       (B) Creative mode — I’ll generate a complete interactive dashboard creatively using Plotly, 
           similar to a Power BI experience, without asking further questions.”

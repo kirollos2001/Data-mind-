@@ -59,9 +59,9 @@ def _render_message(message: dict) -> None:
                 if suggestions_text.endswith(']'):
                     suggestions_text = suggestions_text[:-1]
                 suggestions_text = suggestions_text.strip()
-                
-                with st.expander("💡 Suggestions for next analysis", expanded=True):
-                    st.markdown(suggestions_text)
+                if suggestions_text:
+                    with st.expander("💡 Suggestions for next analysis", expanded=True):
+                        st.markdown(suggestions_text)
             
             # Display errors
             if "error" in message:
