@@ -12,7 +12,14 @@ warnings.filterwarnings('ignore', category=FutureWarning, module='plotly')
 
 from code_executor import execute_code
 from data_analysis import DatasetSummary, get_summary
-from llm_utils import LLMResponse, LLMResponseError, ask_llm, reset_chat_session, send_execution_results
+from llm_utils import (
+    LLMResponse,
+    LLMResponseError,
+    ask_llm,
+    reset_chat_session,
+    send_execution_results,
+    send_chart_table_data_for_analysis,
+)
 
 
 st.set_page_config(page_title="AI Data Analyst", layout="wide", page_icon="🤖")
@@ -160,6 +167,23 @@ def _process_user_query(user_query: str) -> None:
             assistant_message["figures"] = execution_result.figures
         if execution_result.tables:
             assistant_message["tables"] = execution_result.tables
+        
+        # If charts or tables were generated, send the actual data to LLM for enhanced insights
+        if (execution_result.chart_data or execution_result.table_data) and execution_result.success:
+            try:
+                enhanced_llm_result = send_chart_table_data_for_analysis(execution_result)
+                # Update the analysis with enhanced insights based on actual data
+                assistant_message["analysis"] = enhanced_llm_result.analysis
+                # Update suggestions if provided
+                if enhanced_llm_result.suggestions:
+                    assistant_message["suggestions"] = enhanced_llm_result.suggestions
+            except (LLMResponseError, EnvironmentError) as exc:
+                # If enhanced analysis fails, keep the original analysis
+                # Log the error but don't fail the whole request
+                st.warning(f"⚠️ Could not generate enhanced insights: {str(exc)}")
+            except Exception as exc:
+                # Silently fail - use original analysis
+                pass
     
     st.session_state.chat_history.append(assistant_message)
 

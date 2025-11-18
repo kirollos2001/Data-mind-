@@ -6,7 +6,10 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from code_executor import ExecutionResult
 
 from dotenv import load_dotenv
 
@@ -220,6 +223,67 @@ def send_execution_results(execution_output: str) -> LLMResponse:
     
     # Send the execution results to the LLM
     feedback_message = f"Execution results:\n```\n{execution_output}\n```\n\nNow provide the complete analysis based on these results."
+    response = _chat_session.send_message(feedback_message)
+    
+    message_content = response.text or ""
+    
+    try:
+        payload = json.loads(message_content)
+    except json.JSONDecodeError as exc:
+        raise LLMResponseError("Failed to parse JSON from LLM response.") from exc
+    
+    return _ensure_response_shape(payload)
+
+
+def send_chart_table_data_for_analysis(execution_result: "ExecutionResult") -> LLMResponse:
+    """Send chart and table data to the LLM for generating enhanced insights.
+    
+    This function extracts structured data from charts and tables created during
+    code execution and sends it to the LLM so it can generate smarter explanations
+    and business insights based on the actual numeric data, not just the query text.
+    
+    Args:
+        execution_result: An ExecutionResult object containing chart_data and table_data
+        
+    Returns:
+        LLMResponse with enhanced analysis based on the actual data
+    """
+    global _chat_session
+    
+    if _chat_session is None:
+        raise RuntimeError("No active chat session. Call ask_llm first.")
+    
+    # Build a comprehensive message with chart and table data
+    message_parts = []
+    message_parts.append("I have executed the analysis code and generated charts/tables. Below is the actual numeric data from these visualizations and tables. Please provide enhanced business insights and explanations based on this real data:\n\n")
+    
+    # Add chart data if available
+    if execution_result.chart_data:
+        message_parts.append("## Chart Data\n")
+        message_parts.append("The following charts were created with their underlying data:\n\n")
+        chart_json = execution_result.get_chart_data_json()
+        if chart_json:
+            message_parts.append(f"```json\n{chart_json}\n```\n\n")
+    
+    # Add table data if available
+    if execution_result.table_data:
+        message_parts.append("## Table Data\n")
+        message_parts.append("The following tables were created with their underlying data:\n\n")
+        table_json = execution_result.get_table_data_json()
+        if table_json:
+            message_parts.append(f"```json\n{table_json}\n```\n\n")
+    
+    # Add stdout if available
+    if execution_result.stdout:
+        message_parts.append(f"## Execution Output\n```\n{execution_result.stdout}\n```\n\n")
+    
+    message_parts.append("Based on the actual data shown above, please provide:")
+    message_parts.append("1. Detailed insights and observations from the numeric data")
+    message_parts.append("2. Business implications and recommendations")
+    message_parts.append("3. Key patterns, trends, or anomalies you notice")
+    message_parts.append("4. Updated analysis text that references specific numbers and findings from the data")
+    
+    feedback_message = "\n".join(message_parts)
     response = _chat_session.send_message(feedback_message)
     
     message_content = response.text or ""
