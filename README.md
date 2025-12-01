@@ -1,4 +1,4 @@
-# 🤖 AI Data Analyst Agent
+# 🤖 Data Mind
 
 An intelligent data analysis assistant powered by **Google Gemini**, **LangChain**, and **Streamlit**. This agent helps you analyze tabular data (CSV, SQL databases), generate interactive visualizations, and uncover insights using natural language.
 
