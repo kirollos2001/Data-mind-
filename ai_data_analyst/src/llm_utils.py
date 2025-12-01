@@ -131,7 +131,7 @@ def ask_llm(
     user_query: str,
     data_summary: str,
     *,
-    model: str = "gemini-2.5-pro",
+    model: str = "gemini-3-pro-preview",
     api_key: Optional[str] = None,
     temperature: float = 0.2,
     reset_chat: bool = False,

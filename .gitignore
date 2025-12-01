@@ -132,3 +132,7 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Project specific ignores
+snapshot.db
+ai_data_analyst/rag_output/

@@ -1,12 +1,10 @@
 """Utilities for loading CSV data and producing concise dataset summaries."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Mapping, Optional
-
+import os
 import pandas as pd
-
 
 @dataclass
 class DatasetSummary:
@@ -193,4 +191,85 @@ def get_summary(file_like: Any, *, max_top_values: int = 3) -> DatasetSummary:
         text=text_summary,
         details=details,
         encoding=used_encoding,
+    )
+
+
+def get_database_summary(db_path: str, max_top_values: int = 3) -> DatasetSummary:
+    """
+    Connect to a SQLite database and return a structured summary of all tables.
+    Returns a DatasetSummary where 'dataframe' is None (since it's a DB),
+    but 'text' and 'details' contain schema info.
+    """
+    import sqlite3
+    
+    if not os.path.exists(db_path):
+        raise FileNotFoundError(f"Database file not found: {db_path}")
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Get list of tables
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
+    
+    all_tables_details = []
+    text_lines = [f"Database: {os.path.basename(db_path)}", f"Tables: {', '.join(tables)}"]
+    
+    for table in tables:
+        # Get row count
+        cursor.execute(f"SELECT COUNT(*) FROM '{table}'")
+        row_count = cursor.fetchone()[0]
+        
+        # Get sample data (first 3 rows)
+        df_sample = pd.read_sql(f"SELECT * FROM '{table}' LIMIT 3", conn)
+        
+        # Get column info
+        # We can reuse _collect_column_summary if we had the full column, 
+        # but for a DB we might not want to load everything. 
+        # Let's just get basic schema + sample stats.
+        
+        # To get better stats, we could load a sample of the data
+        # or just rely on schema. Let's load a slightly larger sample for stats
+        # if the table isn't huge.
+        
+        # For safety/speed, let's limit to 1000 rows for stats generation
+        df_stats = pd.read_sql(f"SELECT * FROM '{table}' LIMIT 1000", conn)
+        
+        column_details = [
+            _collect_column_summary(df_stats[col], max_top_values=max_top_values)
+            for col in df_stats.columns
+        ]
+        
+        table_summary = {
+            "table_name": table,
+            "row_count": row_count,
+            "columns": column_details,
+            "preview_rows": df_sample.to_dict(orient="records")
+        }
+        all_tables_details.append(table_summary)
+        
+        # Add to text summary
+        text_lines.append(f"\nTable: {table} ({row_count} rows)")
+        text_lines.append(f"Columns: {', '.join(df_sample.columns)}")
+        
+        # Add brief column stats to text
+        for col_det in column_details:
+            line = f"  - {col_det['name']} ({col_det['dtype']})"
+            if 'missing_pct' in col_det and col_det['missing_pct'] > 0:
+                line += f", missing={col_det['missing_pct']}%"
+            text_lines.append(line)
+
+    conn.close()
+    
+    details = {
+        "type": "database",
+        "db_path": db_path,
+        "tables": all_tables_details
+    }
+    
+    return DatasetSummary(
+        dataframe=None,  # No single dataframe for a DB
+        text="\n".join(text_lines),
+        details=details,
+        encoding="sqlite"
     )
