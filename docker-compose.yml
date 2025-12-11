@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  ai-analyst:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      # Pass through the Google API Key if it's set in the host environment
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
